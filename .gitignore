@@ -3,6 +3,7 @@ dist/
 build/
 .cache/
 .env*
+!.env.example
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo
@@ -13,6 +14,17 @@ logs/
 .tmp-*
 .DS_Store
 .tool-decisions/
+
+# Références visuelles et doublons d'assets à la racine.
+# Les assets réellement servis vivent dans public/.
+/inspi design home bar mobile/
+/logo_A.ico
+/logo_A.png
+/logo_A_full_black.ico
+/logo_A_full_black.png
+/logo_A_full_white.ico
+/logo_A_full_white.png
+/mayora.ttf
 
 # Platform-managed agentplat state, not project source. In the
 # client-initiated single-repo workspace layout (make's `Path: "."` spec) the
