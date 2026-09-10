@@ -1,0 +1,11 @@
+{
+  "title": "AgroFlow",
+  "description": "Groupage agricole au Bénin — lots, transport partagé et passeport produit.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
