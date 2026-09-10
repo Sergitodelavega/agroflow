@@ -1,6 +1,10 @@
 {
   "title": "AgroFlow",
-  "description": "Groupage agricole au Bénin — lots, transport partagé et passeport produit.",
+  "language": "fr",
+  "description": "Mutualisation logistique agricole — groupage des lots, suivi de parcours et passeport produit.",
+  "icons": {
+    "icon": "/favicon.ico"
+  },
   "robots": {
     "index": false
   },

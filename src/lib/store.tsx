@@ -7,6 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getRepository, initialState, workspaceFor, type Workspace } from "./api";
+import { useOptionalAuth } from "./auth";
+import { clearPayments } from "./payments";
 import type {
   AppState,
   EventType,
@@ -15,19 +18,8 @@ import type {
   Operation,
   Vigilance,
 } from "./types";
-import { createSeed } from "./seed";
 
-const STORAGE_KEY = "agroflow.state.v5";
-
-function load(): AppState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AppState;
-  } catch {
-    // ignore corrupted storage
-  }
-  return createSeed();
-}
+const repo = getRepository();
 
 interface StoreValue extends AppState {
   createLot: (input: NewLotInput) => Lot;
@@ -40,7 +32,10 @@ interface StoreValue extends AppState {
   getOperation: (id: string) => Operation | undefined;
   setOperationStatus: (opId: string, status: Operation["status"]) => void;
   assignCarrier: (opId: string, carrier: string) => boolean;
-  resetDemo: () => void;
+  /** Remet l'espace courant à son état de départ : le seed en démo, vide pour un compte créé. */
+  resetWorkspace: () => void;
+  /** Vrai quand l'espace courant est celui des comptes de démo. */
+  seeded: boolean;
 }
 
 export interface NewLotInput {
@@ -73,16 +68,32 @@ function nextId(prefix: string, existing: string[]): string {
   return `${prefix}-${String(max + 1).padStart(3, "0")}`;
 }
 
+interface Entry {
+  workspace: Workspace;
+  data: AppState;
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(load);
+  const auth = useOptionalAuth();
+  const session = auth?.session ?? null;
+  const workspace = useMemo(() => workspaceFor(session), [session]);
+  const [entry, setEntry] = useState<Entry>(() => ({ workspace, data: repo.load(workspace) }));
+
+  // Changement de compte : on recharge l'espace pendant le rendu, pour ne jamais
+  // afficher — ni réenregistrer — les données du compte précédent.
+  if (entry.workspace.key !== workspace.key) {
+    setEntry({ workspace, data: repo.load(workspace) });
+  }
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // ignore quota errors
-    }
-  }, [state]);
+    if (entry.workspace.key !== workspace.key) return;
+    repo.save(entry.workspace, entry.data);
+  }, [entry, workspace]);
+
+  const state = entry.data;
+  const setState = useCallback((updater: (current: AppState) => AppState) => {
+    setEntry((current) => ({ ...current, data: updater(current.data) }));
+  }, []);
 
   const createLot = useCallback((input: NewLotInput): Lot => {
     const now = new Date().toISOString();
@@ -106,7 +117,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ...s, lots: [created, ...s.lots] };
     });
     return created;
-  }, []);
+  }, [setState]);
 
   const updateLot = useCallback((id: string, input: NewLotInput): Lot | null => {
     let updated: Lot | null = null;
@@ -117,7 +128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ...s, lots: s.lots.map((l) => (l.id === id ? updated! : l)) };
     });
     return updated;
-  }, []);
+  }, [setState]);
 
   const cancelLot = useCallback((id: string): boolean => {
     let removed = false;
@@ -128,7 +139,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ...s, lots: s.lots.filter((l) => l.id !== id) };
     });
     return removed;
-  }, []);
+  }, [setState]);
 
   const createOperation = useCallback(
     (base: Lot, lotIds: string[], corridor: string, carrier: string): Operation => {
@@ -172,7 +183,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       return created;
     },
-    [],
+    [setState],
   );
 
   const addEvent = useCallback(
@@ -202,7 +213,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
       }));
     },
-    [],
+    [setState],
   );
 
   const addOperationEvent = useCallback(
@@ -245,7 +256,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { lots, operations };
       });
     },
-    [],
+    [setState],
   );
 
   const setOperationStatus = useCallback(
@@ -297,7 +308,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { lots, operations };
       });
     },
-    [],
+    [setState],
   );
 
   const assignCarrier = useCallback((opId: string, carrier: string): boolean => {
@@ -314,14 +325,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       };
     });
     return updated;
-  }, []);
+  }, [setState]);
 
   const getLot = useCallback((id: string) => state.lots.find((l) => l.id === id), [state.lots]);
   const getOperation = useCallback(
     (id: string) => state.operations.find((o) => o.id === id),
     [state.operations],
   );
-  const resetDemo = useCallback(() => setState(createSeed()), []);
+  const resetWorkspace = useCallback(() => {
+    clearPayments();
+    setEntry((current) => ({ ...current, data: initialState(current.workspace) }));
+  }, []);
+
+  const seeded = entry.workspace.seeded;
 
   const value = useMemo<StoreValue>(
     () => ({
@@ -336,9 +352,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       getOperation,
       setOperationStatus,
       assignCarrier,
-      resetDemo,
+      resetWorkspace,
+      seeded,
     }),
-    [state, createLot, updateLot, cancelLot, createOperation, addEvent, addOperationEvent, getLot, getOperation, setOperationStatus, assignCarrier, resetDemo],
+    [state, createLot, updateLot, cancelLot, createOperation, addEvent, addOperationEvent, getLot, getOperation, setOperationStatus, assignCarrier, resetWorkspace, seeded],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { DEMO_ACCOUNTS, ROLE_LABELS } from "./accounts";
 import { useAuth } from "./auth";
 import type { Lot, Operation } from "./types";
 
@@ -13,18 +14,19 @@ export interface RoleProfile {
   org: string;
 }
 
+/** Profils de démonstration — un compte créé apporte ses propres nom et organisation. */
 export const PROFILES: Record<Role, RoleProfile> = {
   producteur: {
     role: "producteur",
-    label: "Producteur",
-    name: "Adjovi H.",
-    org: "Coopérative Maraîchère de Sèmè",
+    label: ROLE_LABELS.producteur,
+    name: DEMO_ACCOUNTS.producteur.name,
+    org: DEMO_ACCOUNTS.producteur.org,
   },
   transporteur: {
     role: "transporteur",
-    label: "Transporteur",
-    name: "Karim B.",
-    org: "Transport Borgou Express",
+    label: ROLE_LABELS.transporteur,
+    name: DEMO_ACCOUNTS.transporteur.name,
+    org: DEMO_ACCOUNTS.transporteur.org,
   },
   acheteur: {
     role: "acheteur",
@@ -34,9 +36,9 @@ export const PROFILES: Record<Role, RoleProfile> = {
   },
   operateur: {
     role: "operateur",
-    label: "Opérateur logistique",
-    name: "Rachid S.",
-    org: "AgroFlow — Coordination",
+    label: ROLE_LABELS.operateur,
+    name: DEMO_ACCOUNTS.operateur.name,
+    org: DEMO_ACCOUNTS.operateur.org,
   },
 };
 
@@ -159,6 +161,8 @@ interface RoleValue {
   profile: RoleProfile;
   perms: Permissions;
   authenticated: boolean;
+  /** Vrai pour les trois comptes de démonstration, qui gardent les données de seed. */
+  demo: boolean;
 }
 
 const GUEST_PERMS: Permissions = {
@@ -189,24 +193,32 @@ const RoleContext =
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const role = session?.role ?? null;
 
   const value = useMemo<RoleValue>(
     () =>
-      role
+      session
         ? {
-            role,
-            profile: PROFILES[role],
-            perms: PERMISSIONS[role],
+            role: session.role,
+            // Le nom et l'organisation viennent du compte, pas du profil de démo :
+            // c'est ce qui isole les lots d'un compte fraîchement créé.
+            profile: {
+              role: session.role,
+              label: ROLE_LABELS[session.role],
+              name: session.name,
+              org: session.org,
+            },
+            perms: PERMISSIONS[session.role],
             authenticated: true,
+            demo: session.demo,
           }
         : {
             role: GUEST_PROFILE.role,
             profile: GUEST_PROFILE,
             perms: GUEST_PERMS,
             authenticated: false,
+            demo: false,
           },
-    [role],
+    [session],
   );
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

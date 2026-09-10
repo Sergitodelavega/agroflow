@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { useRole, visibleLots } from "../lib/role";
 import { ZONES, DESTINATIONS } from "../lib/seed";
-import { Panel, PanelHeader } from "../components/ui";
+import { EmptyState, EmptyStateLink, Panel, PanelHeader } from "../components/ui";
 
 type Flow = {
   key: string;
@@ -42,9 +42,11 @@ export default function FlowMap() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Carte des flux</h1>
         <p className="mt-1 text-sm text-muted">
-          {perms.scopeOwn
-            ? "Le Nord en haut, la côte en bas. Seuls vos lots sont tracés — cliquez un trait ou un corridor."
-            : "Le Nord en haut, la côte en bas. L'épaisseur d'un trait = le volume. Cliquez un corridor pour le lire."}
+          {lots.length === 0
+            ? "Le Nord en haut, la côte en bas. Aucun flux n'est encore tracé sur votre espace."
+            : perms.scopeOwn
+              ? "Le Nord en haut, la côte en bas. Seuls vos lots sont tracés — cliquez un trait ou un corridor."
+              : "Le Nord en haut, la côte en bas. L'épaisseur d'un trait = le volume. Cliquez un corridor pour le lire."}
         </p>
       </div>
 
@@ -160,7 +162,11 @@ export default function FlowMap() {
               <span className="tnum text-muted"> · {active.kg.toLocaleString("fr-FR")} kg</span>
             </p>
           ) : (
-            <p className="text-xs text-faint">Cliquez un trait ou un corridor ci-dessous.</p>
+            <p className="text-xs text-faint">
+              {flowList.length === 0
+                ? "Les corridors se dessineront ici dès le premier lot."
+                : "Cliquez un trait ou un corridor ci-dessous."}
+            </p>
           )}
         </div>
       </Panel>
@@ -168,7 +174,18 @@ export default function FlowMap() {
       <Panel>
         <PanelHeader title="Corridors" hint="Du plus chargé au plus léger" />
         {flowList.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-faint">Aucun flux à afficher pour ce rôle.</div>
+          <EmptyState
+            title="Aucun corridor tracé"
+            action={
+              perms.canCreateLot ? (
+                <EmptyStateLink to="/creer">Créer un lot</EmptyStateLink>
+              ) : undefined
+            }
+          >
+            {perms.canCreateLot
+              ? "Un corridor apparaît dès qu'un lot relie une zone de collecte à un marché. Enregistrez un lot pour voir votre premier trait."
+              : "Un corridor apparaît dès qu'un lot relie une zone de collecte à un marché."}
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-border/50">
             {flowList.map((f) => {

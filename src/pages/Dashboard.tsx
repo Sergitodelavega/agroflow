@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowUpRight, Truck } from "lucide-react";
 import { useStore } from "../lib/store";
@@ -6,12 +6,43 @@ import { useRole, lotsForViewer, operationsForViewer } from "../lib/role";
 import { deriveAlerts, dedupeAlerts, lotVigilance, operationRouteEvents } from "../lib/alerts";
 import { CATEGORY_LABELS } from "../lib/types";
 import { estimateOperations, estimateViewerSavings, formatFcfa } from "../lib/savings";
-import { Button, KPIStat, OperationStatusConfirm, Panel, PanelHeader, EmptyState } from "../components/ui";
+import {
+  Button,
+  KPIStat,
+  OperationStatusConfirm,
+  Panel,
+  PanelHeader,
+  EmptyState,
+  EmptyStateLink,
+} from "../components/ui";
 import {
   OperationStatusBadge,
   StatusBadge,
   VigilanceBadge,
 } from "../components/badges";
+
+function SeeAll({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link to={to} className="inline-flex min-h-11 items-center gap-1 text-[14px] text-foreground hover:text-muted">
+      {children} <ArrowUpRight className="size-3.5" />
+    </Link>
+  );
+}
+
+function Meter({ label, value }: { label: string; value: number }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-[14px]">
+        <span className="text-muted">{label}</span>
+        <span className="tnum font-medium text-foreground">{pct}%</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-[16px] bg-background">
+        <div className="h-full rounded-[16px] bg-foreground" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { lots: allLots, operations: allOperations, setOperationStatus } = useStore();
@@ -29,14 +60,57 @@ export default function Dashboard() {
   const alerts = dedupeAlerts(deriveAlerts(lots, operations));
 
   const ungroupedLots = lots.filter((l) => !l.operationId && l.status === "enregistre");
+  // Tiret plutôt qu'un point : les noms abrégés (« Adjovi H. ») finissent déjà par un point.
   const intro =
     role === "producteur"
-      ? `Bienvenue ${profile.name}. Voici les lots de ${profile.org}, leur compatibilité et les alertes.`
+      ? `Bienvenue ${profile.name} — voici les lots de ${profile.org}, leur compatibilité et les alertes.`
       : role === "transporteur"
-        ? `Bienvenue ${profile.name}. Voici les opérations à prendre en charge et les alertes de transport.`
+        ? `Bienvenue ${profile.name} — voici les opérations à prendre en charge et les alertes de transport.`
         : role === "operateur"
-          ? `Bienvenue ${profile.name}. Voici les lots à regrouper, les opérations par transporteur et les alertes du réseau.`
-          : `Bienvenue ${profile.name}. Vue consolidée des lots, des opérations et des alertes.`;
+          ? `Bienvenue ${profile.name} — voici les lots à regrouper, les opérations par transporteur et les alertes du réseau.`
+          : `Bienvenue ${profile.name} — vue consolidée des lots, des opérations et des alertes.`;
+
+  // Espace vierge (compte fraîchement créé) : un accueil qui explique le premier geste,
+  // plutôt qu'une grille d'indicateurs à zéro et des tableaux vides.
+  if (lots.length === 0 && operations.length === 0) {
+    const blank =
+      role === "producteur"
+        ? {
+            title: "Enregistrez votre premier lot",
+            body: "Déclarez le produit, la quantité, le trajet et la fenêtre de disponibilité. L'opérateur logistique pourra ensuite le rapprocher d'autres besoins pour partager un véhicule.",
+            action: <EmptyStateLink to="/creer">Créer un lot</EmptyStateLink>,
+          }
+        : role === "transporteur"
+          ? {
+              title: "Aucune tournée ne vous est assignée",
+              body: "Dès qu'un opérateur logistique regroupe des lots sur l'un de vos corridors, l'opération apparaît ici avec ses lots, son volume et ses alertes.",
+              action: <EmptyStateLink to="/operations">Voir les opérations</EmptyStateLink>,
+            }
+          : {
+              title: "Aucun lot sur votre réseau",
+              body: "Les besoins de transport déclarés par les producteurs arrivent dans l'inventaire. Vous pourrez alors analyser la compatibilité et créer une opération.",
+              action: <EmptyStateLink to="/lots">Ouvrir l'inventaire</EmptyStateLink>,
+            };
+
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="app-heading text-[clamp(26px,7vw,33px)] text-foreground">
+            Tableau de bord
+          </h1>
+          <p className="mt-2 max-w-2xl text-[16px] leading-normal tracking-[-0.18px] text-muted">
+            Bienvenue {profile.name} — votre espace {profile.org} est vide pour le moment.
+          </p>
+        </div>
+        <Panel>
+          <PanelHeader title="Premiers pas" hint="Ce qui débloque la suite" />
+          <EmptyState title={blank.title} action={blank.action}>
+            {blank.body}
+          </EmptyState>
+        </Panel>
+      </div>
+    );
+  }
 
   const totalVolume = lots.reduce((s, l) => s + l.quantityKg, 0);
   const pooled = lots.filter((l) => l.operationId).length;
@@ -44,34 +118,38 @@ export default function Dashboard() {
   const inTransit = lots.filter((l) => l.status === "en_transport").length;
   const viewerSavings = estimateViewerSavings(lots, operations, allLots);
   const networkSavings = estimateOperations(operations, allLots);
+  const alertRate = lots.length ? Math.round((alerts.length / lots.length) * 100) : 0;
+  const runningRate = operations.length ? Math.round((runningOps / operations.length) * 100) : 0;
+  const plannedRate = operations.length ? Math.round((plannedOps / operations.length) * 100) : 0;
+  const ungroupedRate = lots.length ? Math.round((ungroupedLots.length / lots.length) * 100) : 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">
-          Tableau de bord · {profile.label}
+        <h1 className="app-heading text-[clamp(26px,7vw,33px)] text-foreground">
+          Tableau de bord
         </h1>
-        <p className="mt-1 text-sm text-muted">{intro}</p>
+        <p className="mt-2 max-w-2xl text-[16px] leading-normal tracking-[-0.18px] text-muted">{intro}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {role === "transporteur" ? (
           <>
-            <KPIStat label="À prendre en charge" value={plannedOps} sub="opération(s) planifiée(s)" accent="info" />
-            <KPIStat label="En cours" value={runningOps} sub="tournée(s) sur la route" accent="primary" />
+            <KPIStat label="À prendre en charge" value={plannedOps} sub="opération(s) planifiée(s)" />
+            <KPIStat label="En cours" value={runningOps} sub="tournée(s) sur la route" />
             <KPIStat label="Lots en transport" value={inTransit} sub={`${lots.length} lot(s) dans les opérations`} />
-            <KPIStat label="Alertes de route" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "vigilance"} />
+            <KPIStat label="Alertes de route" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "foreground"} />
           </>
         ) : role === "operateur" ? (
           <>
-            <KPIStat label="À regrouper" value={ungroupedLots.length} sub="lot(s) sans opération" accent="info" />
-            <KPIStat label="En cours" value={runningOps} sub="tournée(s) sur la route" accent="primary" />
+            <KPIStat label="À regrouper" value={ungroupedLots.length} sub="lot(s) sans opération" />
+            <KPIStat label="En cours" value={runningOps} sub="tournée(s) sur la route" />
             <KPIStat
               label="Économie estimée"
               value={formatFcfa(networkSavings.savedFcfa)}
               sub={`${networkSavings.tripsAvoided} course(s) évitée(s) · ${plannedOps} planifiée(s)`}
-              accent="info"
             />
-            <KPIStat label="Alertes réseau" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "vigilance"} />
+            <KPIStat label="Alertes réseau" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "foreground"} />
           </>
         ) : (
           <>
@@ -80,7 +158,6 @@ export default function Dashboard() {
               label="Économie estimée"
               value={formatFcfa(viewerSavings.savedFcfa)}
               sub={`${poolingRate}% mutualisés · ${viewerSavings.tripsAvoided} course(s) évitée(s)`}
-              accent="info"
             />
             <KPIStat
               label="En transport"
@@ -90,23 +167,18 @@ export default function Dashboard() {
                   ? "Aucune opération"
                   : `${operations.length} opération${operations.length > 1 ? "s" : ""}`
               }
-              accent="primary"
             />
-            <KPIStat label="Alertes actives" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "vigilance"} />
+            <KPIStat label="Alertes actives" value={alerts.length} sub={`${alerts.filter((a) => a.level === "alerte").length} critique(s)`} accent={alerts.some((a) => a.level === "alerte") ? "alerte" : "foreground"} />
           </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
         {role === "transporteur" ? (
         <Panel>
           <PanelHeader
             title="Opérations"
-            action={
-              <Link to="/operations" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                Tout voir <ArrowUpRight className="size-3.5" />
-              </Link>
-            }
+            action={<SeeAll to="/operations">Tout voir</SeeAll>}
           />
           {rankedOps.length === 0 ? (
             <EmptyState>Aucune opération ne vous est assignée.</EmptyState>
@@ -115,7 +187,7 @@ export default function Dashboard() {
               {rankedOps.map((op) => (
                 <li key={op.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <Link to={`/operation/${op.id}`} className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-80">
-                    <Truck className="size-4 shrink-0 text-primary" />
+                    <Truck className="size-4 shrink-0 text-foreground" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-foreground">{op.id}</span>
@@ -145,26 +217,24 @@ export default function Dashboard() {
             title="Lots à regrouper"
             action={
               ungroupedLots.length > 0 ? (
-                <Link
-                  to={`/compatibilite?lot=${ungroupedLots[0].id}`}
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  Analyser <ArrowUpRight className="size-3.5" />
-                </Link>
+                <SeeAll to={`/compatibilite?lot=${ungroupedLots[0].id}`}>Analyser</SeeAll>
               ) : (
-                <Link to="/lots" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                  Tout voir <ArrowUpRight className="size-3.5" />
-                </Link>
+                <SeeAll to="/lots">Tout voir</SeeAll>
               )
             }
           />
           {ungroupedLots.length === 0 ? (
-            <EmptyState>Aucun lot en attente de regroupement.</EmptyState>
+            <EmptyState
+              title="Aucun lot en attente"
+              action={<EmptyStateLink to="/lots">Ouvrir l'inventaire</EmptyStateLink>}
+            >
+              Tous les lots enregistrés sont déjà rattachés à une opération.
+            </EmptyState>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left font-mono text-xs uppercase tracking-wider text-faint">
+                  <tr className="border-b border-border text-left text-[14px] text-faint">
                     <th className="px-4 py-2 font-medium">Lot</th>
                     <th className="px-4 py-2 font-medium">Produit</th>
                     <th className="px-4 py-2 font-medium">Producteur</th>
@@ -174,9 +244,9 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {ungroupedLots.slice(0, 7).map((lot) => (
-                    <tr key={lot.id} className="border-b border-border/50 last:border-0 hover:bg-surface-2/50">
+                    <tr key={lot.id} className="border-b border-border/50 last:border-0 hover:bg-background">
                       <td className="px-4 py-2.5">
-                        <Link to={`/passeport/${lot.id}`} className="font-mono text-xs text-info hover:underline">
+                        <Link to={`/passeport/${lot.id}`} className="font-mono text-xs text-foreground hover:underline">
                           {lot.id}
                         </Link>
                       </td>
@@ -198,16 +268,12 @@ export default function Dashboard() {
         <Panel>
           <PanelHeader
             title="Lots récents"
-            action={
-              <Link to="/lots" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                Tout voir <ArrowUpRight className="size-3.5" />
-              </Link>
-            }
+            action={<SeeAll to="/lots">Tout voir</SeeAll>}
           />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left font-mono text-xs uppercase tracking-wider text-faint">
+                <tr className="border-b border-border text-left text-[14px] text-faint">
                   <th className="px-4 py-2 font-medium">Lot</th>
                   <th className="px-4 py-2 font-medium">Produit</th>
                   <th className="px-4 py-2 text-right font-medium">Qté</th>
@@ -217,9 +283,9 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {lots.slice(0, 7).map((lot) => (
-                  <tr key={lot.id} className="border-b border-border/50 last:border-0 hover:bg-surface-2/50">
+                  <tr key={lot.id} className="border-b border-border/50 last:border-0 hover:bg-background">
                     <td className="px-4 py-2.5">
-                      <Link to={`/passeport/${lot.id}`} className="font-mono text-xs text-info hover:underline">
+                      <Link to={`/passeport/${lot.id}`} className="font-mono text-xs text-foreground hover:underline">
                         {lot.id}
                       </Link>
                     </td>
@@ -239,7 +305,34 @@ export default function Dashboard() {
         )}
 
         <div className="space-y-6">
-          {/* Alerts */}
+          <Panel>
+            <PanelHeader title="Indicateurs" hint="Lecture rapide de votre périmètre" />
+            <div className="space-y-5 px-5 py-5">
+              {role === "transporteur" ? (
+                <>
+                  <Meter label="Tournées en cours" value={runningRate} />
+                  <Meter label="Opérations planifiées" value={plannedRate} />
+                  <Meter label="Lots concernés par une alerte" value={alertRate} />
+                </>
+              ) : role === "operateur" ? (
+                <>
+                  <Meter label="Lots encore à regrouper" value={ungroupedRate} />
+                  <Meter label="Tournées en cours" value={runningRate} />
+                  <Meter label="Lots concernés par une alerte" value={alertRate} />
+                </>
+              ) : (
+                <>
+                  <Meter label="Lots mutualisés" value={poolingRate} />
+                  <Meter label="Lots concernés par une alerte" value={alertRate} />
+                  <div className="flex items-center justify-between text-[14px]">
+                    <span className="text-muted">Courses évitées</span>
+                    <span className="tnum font-medium text-foreground">{viewerSavings.tripsAvoided}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </Panel>
+
           <Panel>
             <PanelHeader title="Alertes de vigilance" hint="Règles déclenchées automatiquement" />
             {alerts.length === 0 ? (
@@ -258,7 +351,7 @@ export default function Dashboard() {
                     <AlertTriangle className={`mt-0.5 size-4 shrink-0 ${a.level === "alerte" ? "text-alerte" : "text-vigilance"}`} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Link to={href} className="font-mono text-xs text-info hover:underline">
+                        <Link to={href} className="font-mono text-xs text-foreground hover:underline">
                           {toOp ? lot.operationId : a.lotId}
                         </Link>
                         <VigilanceBadge level={a.level} />
@@ -281,17 +374,24 @@ export default function Dashboard() {
               title="Opérations"
               action={
                 role === "operateur" ? (
-                  <Link to="/operations" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                    Tout voir <ArrowUpRight className="size-3.5" />
-                  </Link>
+                  <SeeAll to="/operations">Tout voir</SeeAll>
                 ) : undefined
               }
             />
             {operations.length === 0 ? (
-              <EmptyState>
+              <EmptyState
+                title={perms.scopeOwn ? "Vos lots attendent un regroupement" : "Aucune opération"}
+                action={
+                  perms.nav.includes("compatibilite") && ungroupedLots.length > 0 ? (
+                    <EmptyStateLink to={`/compatibilite?lot=${ungroupedLots[0].id}`}>
+                      Voir la compatibilité
+                    </EmptyStateLink>
+                  ) : undefined
+                }
+              >
                 {perms.scopeOwn
-                  ? "Aucune opération ne concerne vos lots."
-                  : "Aucune opération enregistrée."}
+                  ? "L'opérateur logistique crée l'opération dès que des lots compatibles peuvent partager un véhicule."
+                  : "Aucune tournée n'a encore été constituée."}
               </EmptyState>
             ) : (
               <ul className="divide-y divide-border/50">
@@ -304,8 +404,8 @@ export default function Dashboard() {
                       : "ok";
                   return (
                   <li key={op.id}>
-                    <Link to={`/operation/${op.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2/50">
-                      <Truck className="size-4 shrink-0 text-primary" />
+                    <Link to={`/operation/${op.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-background">
+                      <Truck className="size-4 shrink-0 text-foreground" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs text-foreground">{op.id}</span>

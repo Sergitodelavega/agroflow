@@ -15,15 +15,17 @@ Le proto Figma Make est déjà fonctionnel (lots, compatibilité, opération, pa
 
 **Authentification (ajout validé)**
 
-- Connexion seule (pas d’inscription).
-- Écran d’entrée : trois cartes — producteur, transporteur, opérateur logistique.
-- Clic sur une carte → formulaire de connexion de ce rôle, avec un bouton qui préremplit les identifiants de démo.
+- Parcours complet **inscription → vérification → connexion**.
+- Inscription : rôle (producteur, transporteur, opérateur logistique), nom, organisation, e-mail, mot de passe.
+- Vérification par code à six chiffres. Supabase Auth l’envoie par e-mail quand il est configuré ; sinon le code s’affiche à l’écran pour que la démonstration tourne sans backend.
+- Connexion par e-mail + mot de passe. Les trois comptes de démo continuent de fonctionner et restent préremplissables depuis l’écran de connexion.
+- **Un compte créé démarre sur un espace vide.** Les données de seed restent réservées aux comptes de démo ; chaque écran a un état vide avec son action principale.
 - Après connexion, l’acteur arrive sur **son** tableau de bord (permissions déjà existantes).
-- Session front-only (`localStorage`). Pas de backend.
-- L’acheteur n’a pas de carte de connexion pour l’instant. Le passeport `/passeport/:id` reste consultable sans session (QR).
+- Persistance : Supabase Auth si `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` sont renseignés, sinon `localStorage`. Aucun secret en dur.
+- L’acheteur n’a pas de compte. Le passeport `/passeport/:id` reste consultable sans session (QR).
 - Le sélecteur de rôle dans le header est remplacé par le profil connecté + déconnexion.
 
-**Ce que ça n’est pas :** un mode jury, un backend, une vraie auth, de nouvelles features métier, ni le remplacement des tableaux par des cartes.
+**Ce que ça n’est pas :** un mode jury, de nouvelles features métier, ni le remplacement des tableaux par des cartes.
 
 ## Tech Stack
 
@@ -56,9 +58,12 @@ On étend le projet existant. Pas de nouveau package, pas de backend.
 SPEC.md                      → ce document (source de vérité)
 src/index.css                → tokens : light par défaut, dark optionnel
 src/lib/theme.ts             → défaut `light` (aujourd’hui `dark`)
-src/lib/auth.tsx             → session, comptes démo, login / logout
+src/lib/accounts.ts          → rôles et comptes de démo (source unique)
+src/lib/auth.tsx             → session, inscription / vérification / connexion
+src/lib/api/auth*.ts         → Supabase Auth si configuré, sinon équivalent localStorage
+supabase/seed.sql            → données de démonstration, séparées du schéma
 src/lib/role.tsx             → rôle dérivé de la session (plus de sélecteur)
-src/pages/Login.tsx          → trois cartes + formulaire + préremplissage
+src/pages/Login.tsx          → connexion, inscription, vérification + préremplissage démo
 src/lib/guidance.ts          → nouveau : prochain pas (rôle + route + état)
 src/components/AppShell.tsx  → chrome clair, zone de guidage
 src/components/ui.tsx        → cartes / boutons plus aérés (tables hors scope)
@@ -117,7 +122,7 @@ Pas d’exigence de couverture de code. Si un test runner est ajouté plus tard 
 
 - **Always :** light par défaut ; conserver les 4 rôles et leurs permissions ; conserver les tableaux ; conserver le modèle (lots, opérations, événements, alertes) ; UI en français ; vérifier les 4 rôles avant de dire « terminé ».
 - **Ask first :** nouvelle dépendance ; changer le modèle de données ou la clé `localStorage` ; supprimer le toggle sombre ; ajouter un runner de tests ; changer les règles de compatibilité ou d’alertes.
-- **Never :** backend / auth réelle ; nouvelles features métier (notif, carte réelle, optimisation d’itinéraires) ; remplacer les tableaux par des listes de cartes ; remettre le dark data-dense comme look produit ; inventer un mode « jury » ; animations lourdes ou lib dédiée.
+- **Never :** injecter des données de seed dans un compte créé ; nouvelles features métier (notif, carte réelle, optimisation d’itinéraires) ; remplacer les tableaux par des listes de cartes ; remettre le dark data-dense comme look produit ; inventer un mode « jury » ; animations lourdes ou lib dédiée.
 
 ## Success Criteria
 
@@ -145,10 +150,12 @@ Guidage (un prochain pas visible)
 
 Authentification
 
-- [ ] Sans session, l’app ouvre les trois cartes (producteur, transporteur, opérateur).
-- [ ] Chaque carte ouvre le formulaire du rôle ; « Remplir la démo » préremplit email + mot de passe.
-- [ ] Une connexion valide mène au dashboard de ce rôle ; une erreur affiche un message.
-- [ ] Déconnexion ramène aux cartes. Le passeport reste lisible sans être connecté.
+- [x] `#/inscription` propose les trois rôles, puis le formulaire nom / organisation / e-mail / mot de passe.
+- [x] L’inscription mène à l’étape de vérification ; le code est affiché sans Supabase, envoyé par e-mail avec.
+- [x] Un compte fraîchement vérifié arrive connecté sur son tableau de bord, avec un espace vide.
+- [x] Une connexion valide mène au dashboard du rôle ; une erreur affiche un message.
+- [x] Les trois comptes de démo fonctionnent toujours et gardent les données de seed.
+- [x] Déconnexion ramène à la connexion. Le passeport reste lisible sans être connecté.
 
 ## Open Questions
 

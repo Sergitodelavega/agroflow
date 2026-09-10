@@ -10,7 +10,7 @@ import {
   CONSTRAINT_LABELS,
   type LotStatus,
 } from "../lib/types";
-import { Input, Panel, PanelHeader, Select, EmptyState } from "../components/ui";
+import { Input, Panel, PanelHeader, Select, EmptyState, EmptyStateLink } from "../components/ui";
 import { StatusBadge, VigilanceBadge } from "../components/badges";
 
 export default function LotsList() {
@@ -56,12 +56,15 @@ export default function LotsList() {
                 : "Lots enregistrés"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {filtered.length} lot(s) —{" "}
-            {role === "transporteur"
-              ? "uniquement les lots déjà regroupés dans une tournée."
-              : perms.scopeOwn
-                ? "filtrez par statut ou recherchez un produit, un lot ou une destination."
-                : "filtrez par statut ou recherchez un producteur, un produit ou une destination."}
+            {lots.length === 0
+              ? "Aucun lot pour le moment."
+              : `${filtered.length} lot(s) — ${
+                  role === "transporteur"
+                    ? "uniquement les lots déjà regroupés dans une tournée."
+                    : perms.scopeOwn
+                      ? "filtrez par statut ou recherchez un produit, un lot ou une destination."
+                      : "filtrez par statut ou recherchez un producteur, un produit ou une destination."
+                }`}
           </p>
         </div>
         {showCreate && (
@@ -87,8 +90,26 @@ export default function LotsList() {
 
       <Panel>
         <PanelHeader title="Inventaire des lots" />
-        {filtered.length === 0 ? (
-          <EmptyState>Aucun lot ne correspond à la recherche.</EmptyState>
+        {lots.length === 0 ? (
+          <EmptyState
+            title={role === "transporteur" ? "Aucun lot à charger" : "Aucun lot enregistré"}
+            action={
+              perms.canCreateLot ? (
+                <EmptyStateLink to="/creer">Créer un lot</EmptyStateLink>
+              ) : undefined
+            }
+          >
+            {role === "transporteur"
+              ? "Les lots apparaissent ici une fois regroupés dans une tournée qui vous est assignée."
+              : perms.canCreateLot
+                ? "Déclarez un besoin de transport : produit, quantité, trajet et fenêtre de disponibilité."
+                : "Les besoins de transport déclarés par les producteurs apparaîtront dans cet inventaire."}
+          </EmptyState>
+        ) : filtered.length === 0 ? (
+          <EmptyState title="Aucun résultat">
+            Aucun lot ne correspond à cette recherche. Modifiez le texte saisi ou revenez à
+            « Tous les statuts ».
+          </EmptyState>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

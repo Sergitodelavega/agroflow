@@ -1,4 +1,5 @@
 import { useEffect, useId, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 export function Panel({
   children,
@@ -9,7 +10,7 @@ export function Panel({
 }) {
   return (
     <div
-      className={`rounded-xl border border-border bg-panel ${className}`}
+      className={`rounded-[16px] border border-border bg-panel ${className}`}
     >
       {children}
     </div>
@@ -28,10 +29,10 @@ export function PanelHeader({
   return (
     <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
       <div>
-        <h2 className="font-mono text-xs uppercase tracking-[0.15em] text-muted">
+        <h2 className="text-[15px] font-medium text-foreground">
           {title}
         </h2>
-        {hint && <p className="mt-0.5 text-xs text-faint">{hint}</p>}
+        {hint && <p className="mt-0.5 text-[14px] text-faint">{hint}</p>}
       </div>
       {action}
     </div>
@@ -57,14 +58,14 @@ export function KPIStat({
     info: "text-info",
   };
   return (
-    <div className="rounded-xl border border-border bg-panel px-5 py-4">
-      <div className="font-mono text-xs uppercase tracking-[0.15em] text-faint">
+    <div className="rounded-[16px] border border-border bg-panel px-5 py-4">
+      <div className="text-[14px] text-faint">
         {label}
       </div>
-      <div className={`tnum mt-1.5 text-2xl font-semibold ${colors[accent]}`}>
+      <div className={`tnum mt-1.5 text-[24px] font-medium tracking-[-0.48px] ${colors[accent]}`}>
         {value}
       </div>
-      {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[14px] text-muted">{sub}</div>}
     </div>
   );
 }
@@ -82,13 +83,13 @@ export function Button({
   variant?: ButtonVariant;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40 disabled:cursor-not-allowed";
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-[16px] px-4 py-2 text-[16px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 disabled:opacity-40 disabled:cursor-not-allowed";
   const variants: Record<ButtonVariant, string> = {
     primary:
-      "bg-primary text-primary-foreground hover:bg-primary-dim",
+      "bg-foreground text-background hover:bg-foreground/90",
     outline:
-      "border border-border-strong text-foreground hover:border-primary/50 hover:text-primary",
-    ghost: "text-muted hover:text-foreground hover:bg-surface-2",
+      "border border-border-strong bg-panel text-foreground hover:border-foreground/40",
+    ghost: "text-muted hover:text-foreground hover:bg-background",
   };
   return (
     <button type={type} className={`${base} ${variants[variant]} ${className}`} {...props}>
@@ -106,7 +107,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block font-mono text-xs uppercase tracking-[0.12em] text-muted">
+      <span className="mb-1.5 block text-[14px] font-medium text-muted">
         {label}
       </span>
       {children}
@@ -115,7 +116,7 @@ export function Field({
 }
 
 const inputCls =
-  "w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm text-foreground placeholder:text-faint focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/40";
+  "w-full rounded-[16px] border border-border-strong bg-panel px-3 py-2.5 text-[16px] text-foreground placeholder:text-faint focus:border-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className || ""}`} />;
@@ -127,9 +128,39 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
+/**
+ * État vide : un titre, une phrase, et l'action qui débloque la suite.
+ * Sans `title` ni `action`, on garde la simple ligne d'explication.
+ */
+export function EmptyState({
+  title,
+  children,
+  action,
+}: {
+  title?: string;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   return (
-    <div className="px-5 py-12 text-center text-sm text-faint">{children}</div>
+    <div className="flex flex-col items-center px-5 py-12 text-center">
+      {title && (
+        <h3 className="text-[16px] font-medium tracking-[-0.18px] text-foreground">{title}</h3>
+      )}
+      <p className={`max-w-[46ch] text-sm text-faint ${title ? "mt-2" : ""}`}>{children}</p>
+      {action && <div className="mt-5 flex flex-wrap justify-center gap-3">{action}</div>}
+    </div>
+  );
+}
+
+/** Lien mis en avant dans un état vide — même dessin que le bouton primaire. */
+export function EmptyStateLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[16px] bg-foreground px-4 py-2 text-[16px] font-medium text-background transition-colors duration-200 hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -175,7 +206,7 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 w-full max-w-md rounded-xl border border-border bg-panel p-5"
+        className="relative z-10 w-full max-w-md rounded-[16px] border border-border bg-panel p-5"
       >
         <h2 id={titleId} className="text-lg font-semibold tracking-tight text-foreground">
           {title}

@@ -107,7 +107,10 @@ function forProducteur(lots: Lot[], perms: Permissions, path: string): NextStep 
   if (pending.length && perms.nav.includes("compatibilite")) {
     return {
       title: "Prochain pas",
-      body: `${pending.length} de vos lots peuvent être rapprochés d'autres besoins.`,
+      body:
+        pending.length === 1
+          ? "Un de vos lots peut être rapproché d'autres besoins."
+          : `${pending.length} de vos lots peuvent être rapprochés d'autres besoins.`,
       actionLabel: "Voir la compatibilité",
       to: `/compatibilite?lot=${pending[0].id}`,
     };
@@ -169,6 +172,14 @@ function forTransporteur(lots: Lot[], operations: Operation[], perms: Permission
       to: `/passeport/${inTransit.id}`,
     };
   }
+  if (operations.length === 0) {
+    return {
+      title: "Prochain pas",
+      body: "Aucune tournée ne vous est encore assignée. L'opérateur logistique vous attribuera une opération dès qu'un regroupement sera prêt.",
+      actionLabel: "Voir les opérations",
+      to: "/operations",
+    };
+  }
   return null;
 }
 
@@ -200,7 +211,10 @@ function forOperateur(lots: Lot[], operations: Operation[], perms: Permissions):
   if (pending.length && perms.canGroup) {
     return {
       title: "Prochain pas",
-      body: `${pending.length} lots peuvent être regroupés.`,
+      body:
+        pending.length === 1
+          ? "Un lot peut être regroupé."
+          : `${pending.length} lots peuvent être regroupés.`,
       actionLabel: "Analyser la compatibilité",
       to: `/compatibilite?lot=${pending[0].id}`,
     };
@@ -232,6 +246,14 @@ function forOperateur(lots: Lot[], operations: Operation[], perms: Permissions):
       body: "Aucun lot en attente. Enregistrez un besoin au nom d'une coopérative.",
       actionLabel: "Créer un lot",
       to: "/creer",
+    };
+  }
+  if (lots.length === 0) {
+    return {
+      title: "Prochain pas",
+      body: "Aucun lot n'est encore enregistré sur votre réseau. Les besoins déclarés par les producteurs apparaîtront dans l'inventaire.",
+      actionLabel: "Ouvrir l'inventaire",
+      to: "/lots",
     };
   }
   return null;

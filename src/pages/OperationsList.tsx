@@ -4,7 +4,15 @@ import { useStore } from "../lib/store";
 import { useRole, lotsForViewer, operationsForViewer } from "../lib/role";
 import { deriveAlerts, operationRouteEvents } from "../lib/alerts";
 import { EVENT_LABELS, type OperationStatus } from "../lib/types";
-import { Button, OperationStatusConfirm, Panel, PanelHeader, Select, EmptyState } from "../components/ui";
+import {
+  Button,
+  OperationStatusConfirm,
+  Panel,
+  PanelHeader,
+  Select,
+  EmptyState,
+  EmptyStateLink,
+} from "../components/ui";
 import { Truck } from "lucide-react";
 import { OperationStatusBadge, VigilanceBadge } from "../components/badges";
 
@@ -40,7 +48,9 @@ export default function OperationsList() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Opérations</h1>
         <p className="mt-1 text-sm text-muted">
-          {ranked.length} opération{ranked.length > 1 ? "s" : ""} — filtrez par statut ou par alerte, puis ouvrez une tournée.
+          {operations.length === 0
+            ? "Aucune tournée pour le moment."
+            : `${ranked.length} opération${ranked.length > 1 ? "s" : ""} — filtrez par statut ou par alerte, puis ouvrez une tournée.`}
         </p>
       </div>
 
@@ -67,8 +77,28 @@ export default function OperationsList() {
 
       <Panel>
         <PanelHeader title="Tournées" hint="En cours et alertes d'abord" />
-        {ranked.length === 0 ? (
-          <EmptyState>Aucune opération ne correspond au filtre.</EmptyState>
+        {operations.length === 0 ? (
+          <EmptyState
+            title={
+              role === "transporteur"
+                ? "Aucune tournée ne vous est assignée"
+                : "Aucune opération constituée"
+            }
+            action={
+              role === "transporteur" ? undefined : (
+                <EmptyStateLink to="/lots">Ouvrir l'inventaire</EmptyStateLink>
+              )
+            }
+          >
+            {role === "transporteur"
+              ? "Dès qu'un opérateur logistique regroupe des lots sur l'un de vos corridors, la tournée apparaît ici avec ses lots, son volume et ses alertes."
+              : "Une opération naît d'un regroupement de lots compatibles. Commencez par l'inventaire, puis lancez une analyse de compatibilité."}
+          </EmptyState>
+        ) : ranked.length === 0 ? (
+          <EmptyState title="Aucun résultat">
+            Aucune opération ne correspond à ces filtres. Revenez à « Tous les statuts » ou à
+            « Toutes les vigilances ».
+          </EmptyState>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

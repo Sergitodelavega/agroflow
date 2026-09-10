@@ -25,7 +25,6 @@ import {
 } from "../lib/types";
 import { Button, Panel, PanelHeader } from "../components/ui";
 import { StatusBadge, VigilanceBadge } from "../components/badges";
-import NextStep from "../components/NextStep";
 
 const RECEPTION_NOTE = "Réception confirmée par l'acheteur";
 
@@ -77,22 +76,9 @@ export default function Passport() {
   const canReceive = lot.status === "livre" || lot.status === "en_transport";
   const canConfirm = !authenticated || perms.canConfirmReception;
   const canEdit = canEditLot(lot, perms, profile.org);
-  const publicStep = !authenticated
-    ? {
-        title: "Prochain pas",
-        body: received
-          ? "La réception est enregistrée. Consultez l'identité et l'historique."
-          : canReceive
-            ? "Vérifiez le lot, puis confirmez la réception."
-            : "Consultez l'identité et le parcours déclaré de ce lot.",
-        actionLabel: "Confirmer la réception",
-        to: `/passeport/${lot.id}`,
-      }
-    : null;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {publicStep && <NextStep step={publicStep} path={`/passeport/${lot.id}`} />}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link

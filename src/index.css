@@ -1,9 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,100..700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
+
+@font-face {
+  font-family: "Mayora";
+  src: url("/fonts/mayora.ttf") format("truetype");
+  font-display: swap;
+}
 
 @theme inline {
   --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-oracle: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --color-linen-canvas: #f7f5f3;
+  --color-ink-black: #0d0d0d;
+  --color-paper-white: #ffffff;
+  --color-stone: #6e6a69;
+  --color-pebble: #9a9796;
 
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -133,5 +146,232 @@
 /* Tabular numerals for data */
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+/* Cosmos landing — scoped so the product app keeps its own tokens */
+.landing {
+  --landing-max: 1280px;
+  --landing-gap: 80px;
+  background-color: var(--color-linen-canvas);
+  color: var(--color-ink-black);
+  font-family: var(--font-oracle);
+  font-optical-sizing: auto;
+  font-feature-settings: "liga", "onum";
+  overflow-x: hidden;
+}
+
+.landing section[id],
+.landing [data-landing-reveal] {
+  scroll-margin-top: 96px;
+}
+
+.landing-hero-break {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+@media (min-width: 768px) {
+  .landing-hero-break {
+    padding: 120px 20px;
+  }
+}
+
+.landing-hero-rule {
+  width: 72px;
+  height: 1px;
+  background: color-mix(in oklab, var(--color-ink-black) 12%, transparent);
+}
+
+.landing-wordmark {
+  font-family: "Mayora", var(--font-oracle), Georgia, serif;
+}
+
+.landing-eyebrow {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.landing-display {
+  font-size: clamp(42px, 8vw, 74px);
+  font-weight: 350;
+  letter-spacing: -0.05em;
+  line-height: 0.86;
+}
+
+.landing-heading-lg {
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 350;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.landing-heading {
+  font-size: clamp(26px, 3.4vw, 33px);
+  font-weight: 350;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.landing-sub {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  line-height: 1.29;
+}
+
+.landing-body {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.18px;
+  line-height: 1.5;
+}
+
+.landing-caption {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  padding: 16px 24px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.18px;
+  line-height: 1;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.landing-btn:focus-visible {
+  outline: 2px solid var(--color-ink-black);
+  outline-offset: 3px;
+}
+
+.landing-btn-fill {
+  background: var(--color-ink-black);
+  color: var(--color-paper-white);
+}
+
+.landing-btn-fill:hover {
+  background: color-mix(in oklab, var(--color-ink-black) 88%, white);
+}
+
+.landing-btn-outline {
+  background: var(--color-paper-white);
+  color: var(--color-ink-black);
+  border: 1px solid color-mix(in oklab, var(--color-ink-black) 15%, transparent);
+}
+
+.landing-btn-outline:hover {
+  border-color: color-mix(in oklab, var(--color-ink-black) 40%, transparent);
+}
+
+.landing-nav-link {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-ink-black);
+  text-decoration: none;
+}
+
+.landing-nav-link:hover {
+  color: var(--color-stone);
+}
+
+.landing-nav-link:focus-visible {
+  outline: 2px solid var(--color-ink-black);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* Cosmos product chrome — login + authenticated shell. Does not alter .landing* */
+.app-cosmos {
+  --background: #f7f5f3;
+  --surface: #ffffff;
+  --surface-2: #f0eeeb;
+  --panel: #ffffff;
+  --foreground: #0d0d0d;
+  --muted: #6e6a69;
+  --faint: #9a9796;
+  --border: color-mix(in oklab, #0d0d0d 12%, transparent);
+  --border-strong: color-mix(in oklab, #0d0d0d 18%, transparent);
+  --primary: #0d0d0d;
+  --primary-dim: color-mix(in oklab, #0d0d0d 88%, white);
+  --primary-foreground: #ffffff;
+  --info: #0d0d0d;
+  --ok: #0d0d0d;
+  min-height: 100%;
+  background-color: var(--color-linen-canvas);
+  color: var(--color-ink-black);
+  font-family: var(--font-oracle);
+  font-optical-sizing: auto;
+  font-feature-settings: "kern" 1, "liga" 0;
+  word-spacing: 0.02em;
+}
+
+:root.dark .app-cosmos {
+  --background: #141312;
+  --surface: #1c1b1a;
+  --surface-2: #242322;
+  --panel: #1c1b1a;
+  --foreground: #f7f5f3;
+  --muted: #9a9796;
+  --faint: #6e6a69;
+  --border: color-mix(in oklab, #f7f5f3 12%, transparent);
+  --border-strong: color-mix(in oklab, #f7f5f3 18%, transparent);
+  --primary: #f7f5f3;
+  --primary-dim: color-mix(in oklab, #f7f5f3 88%, black);
+  --primary-foreground: #0d0d0d;
+  --info: #f7f5f3;
+  --ok: #f7f5f3;
+  background-color: #141312;
+  color: #f7f5f3;
+}
+
+.app-cosmos ::selection {
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  color: var(--foreground);
+}
+
+.app-heading {
+  font-weight: 350;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.app-mobile-bar {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.app-cosmos .landing-btn-fill {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.app-cosmos .landing-btn-fill:hover {
+  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+}
+
+.app-cosmos .landing-btn-outline {
+  background: var(--panel);
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+
+.app-cosmos .landing-btn-outline:hover {
+  border-color: color-mix(in oklab, var(--foreground) 40%, transparent);
+}
+
+.app-cosmos .landing-btn:focus-visible {
+  outline-color: var(--foreground);
 }
 

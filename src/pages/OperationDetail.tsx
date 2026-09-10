@@ -11,9 +11,11 @@ import {
   type LotEvent,
   type Vigilance,
 } from "../lib/types";
-import { estimateGroup, formatFcfa, savingsHint } from "../lib/savings";
+import { estimateGroup, formatFcfa, lotShareFcfa, savingsHint } from "../lib/savings";
 import { Button, Field, Input, OperationStatusConfirm, Panel, PanelHeader, Select } from "../components/ui";
 import { OperationStatusBadge, StatusBadge, VigilanceBadge } from "../components/badges";
+import { SandboxSharePay } from "../components/SandboxPayModal";
+import { isPaymentsSandboxEnabled } from "../lib/payments";
 
 // Départ et livraison restent les boutons de statut. Ici : événements de route.
 function fmtDateTime(iso: string): string {
@@ -72,6 +74,18 @@ export default function OperationDetail() {
   );
   const routeEvents = operationRouteEvents(opLots);
   const opsHome = perms.nav.includes("operations") ? "/operations" : "/";
+  const viewerLots = opLots.filter((l) => l.producer === profile.org);
+  const shareLots = role === "producteur" ? viewerLots : opLots;
+  const shareAmount =
+    role === "producteur"
+      ? shareLots.reduce((sum, lot) => sum + lotShareFcfa(lot, opLots), 0)
+      : savings.sharedFcfa;
+  const showSandboxPay =
+    isPaymentsSandboxEnabled() &&
+    op.status !== "livree" &&
+    (role === "producteur" || role === "operateur") &&
+    shareLots.length > 0 &&
+    shareAmount > 0;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,24 +114,38 @@ export default function OperationDetail() {
             {op.carrier ? ` · ${op.carrier}` : ""}
           </p>
         </div>
-        {perms.canManageOperation && (
-          <div className="flex items-center gap-2">
-            {op.status === "planifiee" && (
-              <Button variant="primary" onClick={() => setPendingStatus("en_cours")}>
-                <Truck className="size-4" /> Démarrer le transport
-              </Button>
-            )}
-            {op.status === "en_cours" && (
-              <Button variant="primary" onClick={() => setPendingStatus("livree")}>
-                <CheckCircle2 className="size-4" /> Marquer livrée
-              </Button>
-            )}
-            {op.status === "livree" && (
-              <span className="inline-flex items-center gap-1.5 rounded-sm border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
-                <CheckCircle2 className="size-4" /> Opération livrée
-              </span>
-            )}
-          </div>
+        {(perms.canManageOperation || showSandboxPay) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {perms.canManageOperation && (
+            <>
+              {op.status === "planifiee" && (
+                <Button variant="primary" onClick={() => setPendingStatus("en_cours")}>
+                  <Truck className="size-4" /> Démarrer le transport
+                </Button>
+              )}
+              {op.status === "en_cours" && (
+                <Button variant="primary" onClick={() => setPendingStatus("livree")}>
+                  <CheckCircle2 className="size-4" /> Marquer livrée
+                </Button>
+              )}
+              {op.status === "livree" && (
+                <span className="inline-flex items-center gap-1.5 rounded-sm border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
+                  <CheckCircle2 className="size-4" /> Opération livrée
+                </span>
+              )}
+            </>
+          )}
+          {showSandboxPay && (
+            <SandboxSharePay
+              operationId={op.id}
+              lotIds={shareLots.map((l) => l.id)}
+              amountFcfa={shareAmount}
+              payerOrg={profile.org}
+              payerName={profile.name}
+              corridor={op.corridor}
+            />
+          )}
+        </div>
         )}
       </div>
 

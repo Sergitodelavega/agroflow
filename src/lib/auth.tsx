@@ -1,51 +1,39 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-export type AuthRole = "producteur" | "transporteur" | "operateur";
+import { getAuthRepository, type AccountSession, type SignUpInput, type SignUpOutcome } from "./api/auth";
+import type { DataBackend } from "./api/types";
 
-export interface DemoAccount {
-  role: AuthRole;
-  email: string;
-  password: string;
-}
-
-export const DEMO_ACCOUNTS: Record<AuthRole, DemoAccount> = {
-  producteur: {
-    role: "producteur",
-    email: "adjovi@seme.coop",
-    password: "demo",
-  },
-  transporteur: {
-    role: "transporteur",
-    email: "karim@borgou-express.bj",
-    password: "demo",
-  },
-  operateur: {
-    role: "operateur",
-    email: "rachid@agroflow.bj",
-    password: "demo",
-  },
-};
-
-export const AUTH_ROLES: AuthRole[] = ["producteur", "transporteur", "operateur"];
-
-interface Session {
-  role: AuthRole;
-}
+export {
+  AUTH_ROLES,
+  DEMO_ACCOUNTS,
+  ROLE_LABELS,
+  type AuthRole,
+  type DemoAccount,
+} from "./accounts";
+export { AuthError, PASSWORD_MIN_LENGTH, type AccountSession } from "./api/auth";
 
 interface AuthValue {
-  session: Session | null;
-  login: (role: AuthRole, email: string, password: string) => boolean;
-  logout: () => void;
+  session: AccountSession | null;
+  /** Faux tant que la session persistée n'a pas été relue (Supabase répond en asynchrone). */
+  ready: boolean;
+  backend: DataBackend;
+  /** Le code de vérification est affiché à l'écran quand aucun e-mail n'est réellement envoyé. */
+  showsDevCode: boolean;
+  signUp: (input: SignUpInput) => Promise<SignUpOutcome>;
+  verify: (email: string, code: string) => Promise<AccountSession>;
+  resendCode: (email: string) => Promise<{ devCode: string | null }>;
+  signIn: (email: string, password: string) => Promise<AccountSession>;
+  signOut: () => Promise<void>;
 }
 
-const KEY = "agroflow.session";
-
+// Keep a single Context instance across Vite HMR module reloads (see store.tsx).
 const globalAuth = globalThis as unknown as {
   __agroflowAuthContext?: React.Context<AuthValue | null>;
 };
@@ -53,40 +41,68 @@ const AuthContext =
   globalAuth.__agroflowAuthContext ??
   (globalAuth.__agroflowAuthContext = createContext<AuthValue | null>(null));
 
-function readSession(): Session | null {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session;
-    if (parsed.role && parsed.role in DEMO_ACCOUNTS) return parsed;
-  } catch {
-    // ignore
-  }
-  return null;
-}
+const repo = getAuthRepository();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(readSession);
+  const [session, setSession] = useState<AccountSession | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (session) localStorage.setItem(KEY, JSON.stringify(session));
-    else localStorage.removeItem(KEY);
-  }, [session]);
+    let cancelled = false;
+    repo
+      .getSession()
+      .then((restored) => {
+        if (!cancelled) setSession(restored);
+      })
+      .catch(() => {
+        if (!cancelled) setSession(null);
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const signUp = useCallback(async (input: SignUpInput) => {
+    const outcome = await repo.signUp(input);
+    if (outcome.status === "session") setSession(outcome.session);
+    return outcome;
+  }, []);
+
+  const verify = useCallback(async (email: string, code: string) => {
+    const next = await repo.verify(email, code);
+    setSession(next);
+    return next;
+  }, []);
+
+  const resendCode = useCallback((email: string) => repo.resendCode(email), []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const next = await repo.signIn(email, password);
+    setSession(next);
+    return next;
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await repo.signOut();
+    setSession(null);
+  }, []);
 
   const value = useMemo<AuthValue>(
     () => ({
       session,
-      login: (role, email, password) => {
-        const account = DEMO_ACCOUNTS[role];
-        const ok =
-          email.trim().toLowerCase() === account.email &&
-          password === account.password;
-        if (ok) setSession({ role });
-        return ok;
-      },
-      logout: () => setSession(null),
+      ready,
+      backend: repo.backend,
+      showsDevCode: repo.showsDevCode,
+      signUp,
+      verify,
+      resendCode,
+      signIn,
+      signOut,
     }),
-    [session],
+    [session, ready, signUp, verify, resendCode, signIn, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

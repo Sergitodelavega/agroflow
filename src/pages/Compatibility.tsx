@@ -7,7 +7,16 @@ import { proposeGrouping } from "../lib/compatibility";
 import { CARRIERS } from "../lib/seed";
 import { CATEGORY_LABELS } from "../lib/types";
 import { estimateGroup, formatFcfa, savingsHint } from "../lib/savings";
-import { Button, ConfirmDialog, Field, Panel, PanelHeader, Select, EmptyState } from "../components/ui";
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Panel,
+  PanelHeader,
+  Select,
+  EmptyState,
+  EmptyStateLink,
+} from "../components/ui";
 
 export default function Compatibility() {
   const { lots, createOperation } = useStore();
@@ -40,14 +49,26 @@ export default function Compatibility() {
   if (!canOpen) return <Navigate to="/lots" replace />;
 
   if (availableBases.length === 0) {
+    const nothingYet = lots.length === 0;
     return (
       <div className="space-y-6">
         <h1 className="text-xl font-semibold tracking-tight">Analyse de compatibilité</h1>
         <Panel>
-          <EmptyState>
-            {perms.scopeOwn
-              ? "Tous vos lots sont déjà regroupés. Créez un nouveau lot pour consulter une nouvelle analyse."
-              : "Tous les lots sont déjà regroupés. Créez un nouveau lot pour analyser un regroupement."}
+          <EmptyState
+            title={nothingYet ? "Rien à comparer pour l'instant" : "Tous les lots sont regroupés"}
+            action={
+              perms.canCreateLot ? (
+                <EmptyStateLink to="/creer">Créer un lot</EmptyStateLink>
+              ) : undefined
+            }
+          >
+            {nothingYet
+              ? perms.canCreateLot
+                ? "L'analyse compare un lot de référence aux autres besoins disponibles : même destination, même zone, période et contraintes compatibles. Enregistrez un premier lot pour la lancer."
+                : "L'analyse compare un lot de référence aux autres besoins disponibles. Elle sera disponible dès qu'un producteur aura enregistré un lot."
+              : perms.scopeOwn
+                ? "Tous vos lots sont déjà rattachés à une opération. Enregistrez un nouveau lot pour lancer une nouvelle analyse."
+                : "Tous les lots enregistrés sont déjà rattachés à une opération."}
           </EmptyState>
         </Panel>
       </div>
